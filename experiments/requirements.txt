@@ -1,0 +1,4 @@
+imageio
+Pillow
+requests
+numpy
