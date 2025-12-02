@@ -1,3 +1,9 @@
+# python main.py --mode train --train-episodes 1000 --weights lander_dqn_good.pth
+# python main.py --mode train --train-episodes 20 --weights lander_dqn_sandbag.pth
+
+# python main.py --mode watch --weights lander_dqn_good.pth --episodes 3
+# python main.py --mode watch --weights lander_dqn_sandbag.pth --episodes 3
+
 import argparse
 import os
 import random
@@ -255,7 +261,7 @@ def evaluate(
     num_episodes: int = 5,
     take_screenshots: bool = False,
     max_steps_per_episode: int = 1000,
-    shots_per_episode: int = 3,
+    shots_per_episode: int = 10,
 ):
     """
     Evaluate the agent.

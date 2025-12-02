@@ -2,16 +2,17 @@
 import cv2
 import numpy as np
 
-
-def _get_lander_mask(frame: np.ndarray) -> np.ndarray:
-    """Simple brightness-based mask for the lander body."""
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    _, mask = cv2.threshold(gray, 200, 255, cv2.THRESH_BINARY)
-    return mask
+# Lander body (purple)
+LANDER_LOWER = np.array([110, 80, 140], dtype=np.uint8)
+LANDER_UPPER = np.array([135, 255, 255], dtype=np.uint8)
 
 
 def _get_lander_centroid(frame: np.ndarray) -> tuple[float, float] | None:
-    mask = _get_lander_mask(frame)
+    """
+    Use purple HSV mask to locate the lander centroid.
+    """
+    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+    mask = cv2.inRange(hsv, LANDER_LOWER, LANDER_UPPER)
     ys, xs = np.where(mask > 0)
     if len(xs) == 0:
         return None
@@ -23,11 +24,11 @@ class VerticalCorridorVerifier:
     While high in the air, is the lander roughly centered over the pad?
     """
 
-    def __init__(self, corridor_frac: float = 0.2, min_height_frac: float = 0.3):
+    def __init__(self, corridor_frac: float = 0.2, min_height_frac: float = 0.35):
         """
         corridor_frac: fraction of screen width allowed from center.
-        min_height_frac: only check when lander is above this fraction of height.
-                         (0 = very top, 1 = bottom of screen)
+        min_height_frac: only check when the lander is above this fraction
+                         of the screen height (0 = top, 1 = bottom).
         """
         self.corridor_frac = corridor_frac
         self.min_height_frac = min_height_frac
@@ -38,12 +39,12 @@ class VerticalCorridorVerifier:
 
         centroid = _get_lander_centroid(frame)
         if centroid is None:
-            # Can't see lander → don't fail based on this.
+            # If we can't see the lander, don't fail based on this verifier.
             return True
 
         cx, cy = centroid
 
-        # Only care when "high" (near top of the image).
+        # Only care when "high" (near the top of the image).
         if cy > h * (1.0 - self.min_height_frac):
             return True
 
