@@ -10,3 +10,6 @@ venv/
 env/
 ENV/
 .venv/
+
+# DS_Store files
+*.DS_Store
