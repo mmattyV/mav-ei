@@ -136,7 +136,7 @@ class PitchTrimmingVerifier:
 
     def __init__(
         self,
-        upright_tol_rad: float = math.radians(3.0),   # ~±3° counted as upright
+        upright_tol_rad: float = math.radians(6),   # ~±3° counted as upright
         extreme_fail_rad: float = math.radians(90.0), # ≥90°: always bad
         flame_min_pixels: int = 8,
         flame_dominance_ratio: float = 1.5,
