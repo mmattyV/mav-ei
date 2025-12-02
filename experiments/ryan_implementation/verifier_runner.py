@@ -1,3 +1,5 @@
+# usage: python verifier_runner.py sandbagged_train_screenshots/*.png
+
 # verifier_runner.py
 import glob
 import sys
