@@ -1,0 +1,35 @@
+name: lunar_lander_lowdim
+
+# Lunar Lander environment dimensions
+obs_dim: 8  # [x, y, vx, vy, angle, angular_vel, leg1_contact, leg2_contact]
+action_dim: 2  # [main_engine, lateral_engine] for continuous
+keypoint_dim: 0  # Not using keypoints
+
+env_runner:
+  _target_: diffusion_policy.env_runner.lunar_lander_runner.LunarLanderRunner
+  n_train: 8
+  n_train_vis: 2
+  train_start_seed: 0
+  n_test: 20
+  n_test_vis: 4
+  test_start_seed: 100000
+  max_steps: 1000
+  n_obs_steps: ${n_obs_steps}
+  n_action_steps: ${n_action_steps}
+  n_latency_steps: ${n_latency_steps}
+  fps: 50
+  continuous: true
+  past_action: ${past_action_visible}
+  n_envs: null
+
+dataset:
+  _target_: diffusion_policy.dataset.lunar_lander_dataset.LunarLanderDataset
+  zarr_path: data/lunar_lander/demonstrations.zarr
+  horizon: ${horizon}
+  pad_before: 1  # n_obs_steps - 1 + n_latency_steps = 2 - 1 + 0 = 1
+  pad_after: 7   # n_action_steps - 1 = 8 - 1 = 7
+  seed: 42
+  val_ratio: 0.1
+  max_train_episodes: null
+
+
