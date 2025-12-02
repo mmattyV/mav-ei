@@ -39,63 +39,100 @@ def _get_lander_centroid_y(frame: np.ndarray) -> float | None:
     return float(np.mean(ys))
 
 
+# def _get_flag_zone(frame: np.ndarray) -> tuple[int, int] | None:
+#     """
+#     Detect the two white flag posts and return (left_x, right_x) defining the corridor.
+    
+#     Strategy:
+#     1. Find yellow triangles to locate approximate flag positions
+#     2. For each flag, find the white post column attached to the triangle base
+#     3. Return the x-coordinates of the two white posts
+#     """
+#     h, w, _ = frame.shape
+#     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+    
+#     # First find yellow triangles to get approximate flag locations
+#     yellow_mask = cv2.inRange(hsv, FLAG_LOWER, FLAG_UPPER)
+#     ys, xs = np.where(yellow_mask > 0)
+#     if len(xs) < 10:
+#         return None
+    
+#     # Split into left and right flags
+#     median_x = np.median(xs)
+#     left_yellow_xs = xs[xs < median_x]
+#     right_yellow_xs = xs[xs >= median_x]
+    
+#     if len(left_yellow_xs) == 0 or len(right_yellow_xs) == 0:
+#         return None
+    
+#     # The base of each triangle (where the post attaches) is on the LEFT side
+#     # So for the left flag: leftmost x of yellow pixels
+#     # For the right flag: leftmost x of yellow pixels
+#     left_flag_base_x = int(left_yellow_xs.min())
+#     right_flag_base_x = int(right_yellow_xs.min())
+    
+#     # Now find the white posts near these x-coordinates
+#     white_mask = cv2.inRange(hsv, POST_LOWER, POST_UPPER)
+    
+#     # Search for white column near left flag base
+#     search_width = 15
+#     left_search_region = white_mask[:, max(0, left_flag_base_x - search_width):left_flag_base_x + 5]
+#     left_ys, left_xs = np.where(left_search_region > 0)
+    
+#     right_search_region = white_mask[:, max(0, right_flag_base_x - search_width):right_flag_base_x + 5]
+#     right_ys, right_xs = np.where(right_search_region > 0)
+    
+#     # Get the x-coordinate of the white posts (adjust for search region offset)
+#     if len(left_xs) > 0:
+#         left_post_x = int(np.median(left_xs)) + max(0, left_flag_base_x - search_width)
+#     else:
+#         # Fallback to yellow triangle base
+#         left_post_x = left_flag_base_x
+    
+#     if len(right_xs) > 0:
+#         right_post_x = int(np.median(right_xs)) + max(0, right_flag_base_x - search_width)
+#     else:
+#         # Fallback to yellow triangle base
+#         right_post_x = right_flag_base_x
+    
+#     return left_post_x, right_post_x
+
 def _get_flag_zone(frame: np.ndarray) -> tuple[int, int] | None:
     """
-    Detect the two white flag posts and return (left_x, right_x) defining the corridor.
-    
+    Detect the two yellow flag triangles and return (left_x, right_x)
+    based on their left edges.
+
     Strategy:
-    1. Find yellow triangles to locate approximate flag positions
-    2. For each flag, find the white post column attached to the triangle base
-    3. Return the x-coordinates of the two white posts
+    1. Find yellow pixels corresponding to both flags.
+    2. Split into left-flag and right-flag clusters by x-median.
+    3. For each cluster, take the leftmost x as the flag's "post" x.
     """
     h, w, _ = frame.shape
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-    
-    # First find yellow triangles to get approximate flag locations
+
+    # 1) Find yellow pixels (flags)
     yellow_mask = cv2.inRange(hsv, FLAG_LOWER, FLAG_UPPER)
     ys, xs = np.where(yellow_mask > 0)
     if len(xs) < 10:
+        # Not enough yellow to be confident there are two flags
         return None
-    
-    # Split into left and right flags
+
+    # 2) Split into left and right clusters by x-median
     median_x = np.median(xs)
     left_yellow_xs = xs[xs < median_x]
     right_yellow_xs = xs[xs >= median_x]
-    
+
     if len(left_yellow_xs) == 0 or len(right_yellow_xs) == 0:
         return None
-    
-    # The base of each triangle (where the post attaches) is on the LEFT side
-    # So for the left flag: leftmost x of yellow pixels
-    # For the right flag: leftmost x of yellow pixels
-    left_flag_base_x = int(left_yellow_xs.min())
-    right_flag_base_x = int(right_yellow_xs.min())
-    
-    # Now find the white posts near these x-coordinates
-    white_mask = cv2.inRange(hsv, POST_LOWER, POST_UPPER)
-    
-    # Search for white column near left flag base
-    search_width = 15
-    left_search_region = white_mask[:, max(0, left_flag_base_x - search_width):left_flag_base_x + 5]
-    left_ys, left_xs = np.where(left_search_region > 0)
-    
-    right_search_region = white_mask[:, max(0, right_flag_base_x - search_width):right_flag_base_x + 5]
-    right_ys, right_xs = np.where(right_search_region > 0)
-    
-    # Get the x-coordinate of the white posts (adjust for search region offset)
-    if len(left_xs) > 0:
-        left_post_x = int(np.median(left_xs)) + max(0, left_flag_base_x - search_width)
-    else:
-        # Fallback to yellow triangle base
-        left_post_x = left_flag_base_x
-    
-    if len(right_xs) > 0:
-        right_post_x = int(np.median(right_xs)) + max(0, right_flag_base_x - search_width)
-    else:
-        # Fallback to yellow triangle base
-        right_post_x = right_flag_base_x
-    
-    return left_post_x, right_post_x
+
+    # 3) Use the LEFT edges of each yellow triangle as the corridor boundaries
+    left_flag_x = int(left_yellow_xs.min())
+    right_flag_x = int(right_yellow_xs.min())
+
+    # Just in case things got swapped for some weird reason
+    left_flag_x, right_flag_x = sorted((left_flag_x, right_flag_x))
+
+    return left_flag_x, right_flag_x
 
 
 class VerticalCorridorVerifier:
@@ -107,7 +144,7 @@ class VerticalCorridorVerifier:
         self,
         min_height_frac: float = 0.35,
         padding: int = 5,
-        required_fraction: float = 0.95,
+        required_fraction: float = 0.99,
     ):
         """
         min_height_frac: only check when lander is above this fraction of screen height.
