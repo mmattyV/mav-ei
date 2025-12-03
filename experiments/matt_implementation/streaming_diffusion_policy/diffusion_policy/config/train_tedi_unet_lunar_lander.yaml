@@ -27,7 +27,7 @@ policy:
   
   model:
     _target_: diffusion_policy.model.diffusion.conditional_unet1d_tedi.ConditionalUnet1D
-    input_dim: 2  # action_dim
+    input_dim: 4  # action_dim (discrete one-hot)
     local_cond_dim: null
     global_cond_dim: 16  # obs_dim * n_obs_steps = 8 * 2
     diffusion_step_embed_dim: 256
@@ -101,8 +101,8 @@ training:
   debug: False
   resume: True
   lr_scheduler: cosine
-  lr_warmup_steps: 500
-  num_epochs: 200        # More epochs for better convergence
+  lr_warmup_steps: 100   # Reduced warmup (was 39% of training!)
+  num_epochs: 50         # More epochs for convergence
   gradient_accumulate_every: 1
   use_ema: True
   rollout_every: 9999    # Disabled - gym/gymnasium incompatibility in env runner

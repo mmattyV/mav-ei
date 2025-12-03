@@ -84,15 +84,57 @@ class LunarLanderDataset(BaseLowdimDataset):
         """
         Compute normalizer for observations and actions.
         
+        For discrete actions (one-hot encoded), we scale from [0,1] to [-1,1]
+        since diffusion models work best with data in [-1,1] range.
+        
         Args:
             mode: Normalization mode ('limits' or 'gaussian')
         """
-        data = {
-            'obs': self.replay_buffer['obs'],
-            'action': self.replay_buffer['action']
-        }
+        import torch
+        actions = self.replay_buffer['action']
+        
+        # Check if actions are one-hot encoded (discrete)
+        # One-hot: values in {0, 1} and sum per row = 1
+        is_onehot = (
+            np.allclose(actions.min(), 0) and 
+            np.allclose(actions.max(), 1) and
+            np.allclose(actions.sum(axis=1), 1)
+        )
+        
         normalizer = LinearNormalizer()
-        normalizer.fit(data=data, last_n_dims=1, mode=mode, **kwargs)
+        
+        if is_onehot:
+            # For one-hot actions: 
+            # - Normalize obs to [-1, 1] (standard)
+            # - Scale actions from [0,1] to [-1,1] for diffusion
+            
+            # Fit obs normalizer
+            obs_data = {'obs': self.replay_buffer['obs']}
+            normalizer.fit(data=obs_data, last_n_dims=1, mode=mode, **kwargs)
+            
+            # Add action normalizer that maps [0,1] -> [-1,1]
+            action_data = {'action': actions}
+            action_normalizer = LinearNormalizer()
+            action_normalizer.fit(data=action_data, last_n_dims=1, mode=mode, **kwargs)
+            normalizer.params_dict['action'] = action_normalizer.params_dict['action']
+            
+            # Override to scale [0,1] -> [-1,1]
+            # Formula: output = input * scale + offset
+            # We want: 0 -> -1, 1 -> 1
+            # So: scale = 2, offset = -1
+            action_dim = actions.shape[-1]
+            normalizer.params_dict['action']['scale'].data = torch.ones(action_dim) * 2.0
+            normalizer.params_dict['action']['offset'].data = torch.ones(action_dim) * (-1.0)
+            
+            print("INFO: Detected one-hot actions - scaling [0,1] -> [-1,1] for diffusion")
+        else:
+            # For continuous actions: normalize everything
+            data = {
+                'obs': self.replay_buffer['obs'],
+                'action': actions
+            }
+            normalizer.fit(data=data, last_n_dims=1, mode=mode, **kwargs)
+        
         return normalizer
 
     def get_all_actions(self) -> torch.Tensor:
