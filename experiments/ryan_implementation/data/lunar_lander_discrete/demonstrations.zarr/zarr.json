@@ -1,0 +1,14 @@
+{
+  "attributes": {
+    "env_id": "LunarLander-v3",
+    "n_episodes": 200,
+    "n_steps": 39070,
+    "obs_dim": 8,
+    "action_dim": 1,
+    "action_space": "discrete",
+    "n_actions": 4,
+    "min_reward": 200.0
+  },
+  "zarr_format": 3,
+  "node_type": "group"
+}
