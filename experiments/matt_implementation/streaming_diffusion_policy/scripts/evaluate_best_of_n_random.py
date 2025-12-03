@@ -52,36 +52,47 @@ def load_checkpoint(checkpoint_path: str, device: str = "mps"):
     return policy, cfg
 
 
-def sample_k_candidates(
+def sample_k_candidates_batched(
     policy: TEDiUnetLowdimPolicy,
     obs_dict: dict,
     k: int,
     device: str = "mps"
 ) -> list:
     """
-    Sample K action candidates from the SDP policy.
+    Sample K action candidates from the SDP policy using BATCHED inference.
     
-    Each call to predict_action with the diffusion model uses different
-    random noise, producing different action sequences.
+    Instead of calling predict_action K times (slow), we:
+    1. Expand the observation to batch size K
+    2. Reset the policy buffer to get K independent noise samples
+    3. Run ONE forward pass to get K candidates
+    
+    This is ~K times faster than sequential sampling!
     
     Args:
         policy: The SDP policy
-        obs_dict: Dictionary with 'obs' tensor
+        obs_dict: Dictionary with 'obs' tensor of shape (1, T, D)
         k: Number of candidates to sample
         device: Device to use
         
     Returns:
         List of K action sequences, each shape (n_action_steps, action_dim)
     """
-    candidates = []
+    # Expand observation from (1, T, D) to (K, T, D)
+    obs_expanded = obs_dict['obs'].expand(k, -1, -1)  # (K, n_obs_steps, obs_dim)
+    obs_dict_batched = {'obs': obs_expanded}
+    
+    # Force buffer reinitialization to get K independent random noise samples
+    # This is critical - without this, all K samples would be identical!
+    policy.action_buffer = None
     
     with torch.no_grad():
-        for _ in range(k):
-            # Each call uses different random noise in the diffusion process
-            # This produces diverse action candidates
-            action_dict = policy.predict_action(obs_dict)
-            actions = action_dict['action'].cpu().numpy()[0]  # (n_action_steps, 4)
-            candidates.append(actions)
+        action_dict = policy.predict_action(obs_dict_batched)
+    
+    # actions shape: (K, n_action_steps, action_dim)
+    actions = action_dict['action'].cpu().numpy()
+    
+    # Convert to list of K candidates
+    candidates = [actions[i] for i in range(k)]
     
     return candidates
 
@@ -168,8 +179,8 @@ def evaluate_best_of_n_random(
                 obs_tensor = torch.from_numpy(obs_seq).float().unsqueeze(0).to(device)
                 obs_dict = {'obs': obs_tensor}
                 
-                # Sample K candidates from SDP
-                candidates = sample_k_candidates(policy, obs_dict, k, device)
+                # Sample K candidates from SDP (batched for speed!)
+                candidates = sample_k_candidates_batched(policy, obs_dict, k, device)
                 
                 # RANDOM SELECTION: Pick one candidate at random
                 selected_idx = random.randint(0, k - 1)
