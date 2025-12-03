@@ -231,7 +231,6 @@ dependencies:
       - charset-normalizer==3.4.4
       - cloudpickle==3.1.2
       - diffusers==0.11.1
-      - egl-probe==1.0.2
       - exceptiongroup==1.3.0
       - farama-notifications==0.0.4
       - fsspec==2025.10.0
@@ -260,7 +259,6 @@ dependencies:
       - pytz==2025.2
       - pyyaml==6.0.3
       - rich==14.2.0
-      - robomimic==0.2.0
       - shellingham==1.5.4
       - sniffio==1.3.1
       - stable-baselines3==2.7.0
@@ -272,4 +270,3 @@ dependencies:
       - typing-extensions==4.15.0
       - tzdata==2025.2
       - wasabi==1.1.3
-prefix: /Users/matthewvu/anaconda3/envs/sdp_lunar_lander
