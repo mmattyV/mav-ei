@@ -4,6 +4,8 @@
 # python main.py --mode watch --weights lander_dqn_good.pth --episodes 3
 # python main.py --mode watch --weights lander_dqn_sandbag.pth --episodes 3
 
+# python main.py --mode benchmark --weights lander_dqn_good.pth --episodes 100
+
 import argparse
 import os
 import random
@@ -35,35 +37,6 @@ def make_env(render_mode=None):
     """
     env = gym.make("LunarLander-v3", render_mode=render_mode)
     return env
-
-
-# --- OLD RANDOM-SCREENSHOT VERSION (kept as comments, as requested) ---
-# def maybe_save_screenshot(ep_idx: int, max_shots_ep: int, shots_taken_ep: int) -> int:
-#     """
-#     Randomly save a screenshot of the current pygame window for this episode.
-#     Returns the updated shots_taken_ep counter.
-#     """
-#     if shots_taken_ep >= max_shots_ep:
-#         return shots_taken_ep
-#
-#     # ~5% chance per step; tweak if you want more/less
-#     if random.random() > 0.05:
-#         return shots_taken_ep
-#
-#     surf = pygame.display.get_surface()
-#     if surf is None:
-#         return shots_taken_ep
-#
-#     # pygame surface -> numpy (H, W, 3) BGR for OpenCV
-#     arr = pygame.surfarray.array3d(surf)  # (W, H, 3) RGB
-#     frame = np.transpose(arr, (1, 0, 2))  # -> (H, W, 3)
-#     frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-#
-#     filename = SCREENSHOT_DIR / f"ep{ep_idx:03d}_shot_{shots_taken_ep:02d}.png"
-#     cv2.imwrite(str(filename), frame_bgr)
-#     print(f"[screenshot] saved {filename}")
-#     return shots_taken_ep + 1
-
 
 def maybe_save_screenshot(ep_idx: int, shot_idx: int, frame_rgb: np.ndarray) -> None:
     """
@@ -144,118 +117,6 @@ def train(
     env.close()
     return agent, scores
 
-
-# --- OLD STEPWISE-EVALUATE VERSION (kept as comments, as requested) ---
-# def evaluate(
-#     agent: DQNAgent,
-#     num_episodes: int = 5,
-#     take_screenshots: bool = False,
-#     max_steps_per_episode: int = 1000,
-#     shots_per_episode: int = 3,
-# ):
-#     """
-#     Run episodes with the trained agent.
-#     If take_screenshots=True, randomly capture up to `shots_per_episode`
-#     frames per episode into screenshots/.
-#     """
-#     env = make_env(render_mode="human")
-#     scores = []
-#
-#     for ep in range(num_episodes):
-#         state, _ = env.reset()
-#         episode_reward = 0.0
-#         done = False
-#         steps = 0
-#         shots_taken_ep = 0
-#
-#         while not done and steps < max_steps_per_episode:
-#             # Greedy action for evaluation (no exploration).
-#             action = agent.select_action(state, greedy=True)
-#             next_state, reward, terminated, truncated, _ = env.step(action)
-#             done = terminated or truncated
-#             episode_reward += reward
-#
-#             if take_screenshots:
-#                 shots_taken_ep = maybe_save_screenshot(
-#                     ep_idx=ep,
-#                     max_shots_ep=shots_per_episode,
-#                     shots_taken_ep=shots_taken_ep,
-#                 )
-#
-#             state = next_state
-#             steps += 1
-#
-#         scores.append(episode_reward)
-#         print(f"Eval Episode {ep + 1}: reward = {episode_reward:.2f}")
-#
-#     env.close()
-#     return scores
-
-
-# def evaluate(
-#     agent: DQNAgent,
-#     num_episodes: int = 5,
-#     take_screenshots: bool = False,
-#     max_steps_per_episode: int = 1000,
-#     shots_per_episode: int = 3,
-# ):
-#     """
-#     Evaluate the agent.
-
-#     If take_screenshots=True, we:
-#       - record EVERY frame for the episode as an RGB array
-#       - after the episode ends, choose `shots_per_episode` frames
-#         that are evenly spaced over the length of the trajectory
-#         and save them.
-
-#     This makes the screenshots relative to the *actual* length of
-#     the lander's journey.
-#     """
-#     env = make_env(render_mode="human")
-#     scores = []
-
-#     for ep in range(num_episodes):
-#         state, _ = env.reset()
-#         episode_reward = 0.0
-#         done = False
-#         steps = 0
-
-#         frames = []  # will store RGB frames for this episode
-
-#         while not done and steps < max_steps_per_episode:
-#             # Greedy action for evaluation (no exploration).
-#             action = agent.select_action(state, greedy=True)
-#             next_state, reward, terminated, truncated, _ = env.step(action)
-#             done = terminated or truncated
-#             episode_reward += reward
-
-#             # Grab the current pygame display as an RGB frame
-#             if take_screenshots:
-#                 surf = pygame.display.get_surface()
-#                 if surf is not None:
-#                     arr = pygame.surfarray.array3d(surf)  # (W, H, 3) RGB
-#                     frame_rgb = np.transpose(arr, (1, 0, 2))  # -> (H, W, 3)
-#                     frames.append(frame_rgb)
-
-#             state = next_state
-#             steps += 1
-
-#         scores.append(episode_reward)
-#         print(f"Eval Episode {ep + 1}: reward = {episode_reward:.2f}")
-
-#         # After the episode ends, pick evenly spaced frames to save
-#         if take_screenshots and len(frames) > 0:
-#             num_shots = min(shots_per_episode, len(frames))
-#             # Indices spaced over [0, len(frames)-1]
-#             indices = np.linspace(0, len(frames) - 1, num=num_shots, dtype=int)
-
-#             for shot_idx, frame_idx in enumerate(indices):
-#                 frame_rgb = frames[frame_idx]
-#                 maybe_save_screenshot(ep_idx=ep, shot_idx=shot_idx, frame_rgb=frame_rgb)
-
-#     env.close()
-#     return scores
-
 def evaluate(
     agent: DQNAgent,
     num_episodes: int = 5,
@@ -331,19 +192,83 @@ def evaluate(
     return scores
 
 
+def benchmark(
+    agent: DQNAgent,
+    num_episodes: int = 100,
+    max_steps_per_episode: int = 1000,
+    success_reward_threshold: float = 200.0,
+):
+    """
+    Run many episodes without rendering and report success rate.
+    
+    A landing is considered "successful" if episode reward >= success_reward_threshold.
+    LunarLander gives +100 for landing on the pad, so 200+ usually means a good landing.
+    """
+    env = make_env(render_mode=None)
+    
+    successes = 0
+    rewards = []
+    
+    for ep in range(num_episodes):
+        state, _ = env.reset()
+        episode_reward = 0.0
+        done = False
+        steps = 0
+        
+        while not done and steps < max_steps_per_episode:
+            action = agent.select_action(state, greedy=True)
+            next_state, reward, terminated, truncated, _ = env.step(action)
+            done = terminated or truncated
+            episode_reward += reward
+            state = next_state
+            steps += 1
+        
+        rewards.append(episode_reward)
+        if episode_reward >= success_reward_threshold:
+            successes += 1
+        
+        # Print progress every 10 episodes
+        if (ep + 1) % 10 == 0:
+            print(f"Episode {ep + 1}/{num_episodes} | Reward: {episode_reward:.2f}")
+    
+    env.close()
+    
+    success_rate = successes / num_episodes * 100
+    avg_reward = np.mean(rewards)
+    std_reward = np.std(rewards)
+    
+    print("\n" + "=" * 50)
+    print(f"Benchmark Results ({num_episodes} episodes)")
+    print("=" * 50)
+    print(f"Success Rate:    {successes}/{num_episodes} ({success_rate:.1f}%)")
+    print(f"Average Reward:  {avg_reward:.2f} ± {std_reward:.2f}")
+    print(f"Min Reward:      {np.min(rewards):.2f}")
+    print(f"Max Reward:      {np.max(rewards):.2f}")
+    print("=" * 50)
+    
+    return {
+        "success_rate": success_rate,
+        "successes": successes,
+        "total": num_episodes,
+        "avg_reward": avg_reward,
+        "std_reward": std_reward,
+        "rewards": rewards,
+    }
+
+
 def parse_args():
     parser = argparse.ArgumentParser(description="DQN LunarLander main")
     parser.add_argument(
         "--mode",
-        choices=["train", "watch"],
+        choices=["train", "watch", "benchmark"],
         default="train",
-        help="train: train a new agent; watch: run episodes with rendering",
+        help="train: train a new agent; watch: run episodes with rendering; benchmark: run many episodes and report success rate",
     )
     parser.add_argument(
         "--episodes",
         type=int,
         default=5,
-        help="number of episodes for watch / eval mode",
+        help="number of episodes for watch / benchmark mode",
     )
     parser.add_argument(
         "--train-episodes",
@@ -354,7 +279,7 @@ def parse_args():
     parser.add_argument(
         "--weights",
         type=str,
-        default="lander_dqn.pth",  # weight file
+        default="lander_dqn.pth",
         help="path to save/load model weights",
     )
     parser.add_argument(
@@ -362,6 +287,12 @@ def parse_args():
         type=int,
         default=0,
         help="random seed",
+    )
+    parser.add_argument(
+        "--success-threshold",
+        type=float,
+        default=200.0,
+        help="reward threshold to consider a landing successful (for benchmark mode)",
     )
     return parser.parse_args()
 
@@ -416,6 +347,33 @@ def main():
             )
 
         evaluate(agent, num_episodes=args.episodes, take_screenshots=True)
+
+    elif args.mode == "benchmark":
+        # Load weights and run benchmark
+        env = make_env(render_mode=None)
+        state_dim = env.observation_space.shape[0]
+        action_dim = env.action_space.n
+        env.close()
+
+        agent = DQNAgent(state_dim, action_dim)
+
+        if os.path.exists(args.weights):
+            state_dict = torch.load(args.weights, map_location=agent.device)
+            agent.online_net.load_state_dict(state_dict)
+            agent.target_net.load_state_dict(agent.online_net.state_dict())
+            print(f"Loaded weights from {args.weights}")
+        else:
+            print(
+                f"ERROR: Weight file {args.weights} not found. "
+                "Cannot run benchmark without trained weights."
+            )
+            return
+
+        benchmark(
+            agent,
+            num_episodes=args.episodes,
+            success_reward_threshold=args.success_threshold,
+        )
 
     else:
         raise ValueError(f"Unknown mode {args.mode}")
