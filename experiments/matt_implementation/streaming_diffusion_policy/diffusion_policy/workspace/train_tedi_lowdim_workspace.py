@@ -211,8 +211,8 @@ class TrainTEDiUnetLowdimWorkspace(BaseWorkspace):
                     policy = self.ema_model
                 policy.eval()
 
-                # run rollout
-                if (self.epoch % cfg.training.rollout_every) == 0:
+                # run rollout (skip if rollout_every is 0 or very large)
+                if cfg.training.rollout_every > 0 and cfg.training.rollout_every < 9999 and (self.epoch % cfg.training.rollout_every) == 0:
                     policy.reset_buffer()
                     runner_log = env_runner.run(policy)
                     # log all

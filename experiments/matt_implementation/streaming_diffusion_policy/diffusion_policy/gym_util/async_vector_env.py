@@ -186,7 +186,7 @@ class AsyncVectorEnv(VectorEnv):
         _, successes = zip(*[pipe.recv() for pipe in self.parent_pipes])
         self._raise_if_errors(successes)
 
-    def reset_async(self):
+    def reset_async(self, seed=None, options=None):
         self._assert_is_running()
         if self._state != AsyncState.DEFAULT:
             raise AlreadyPendingCallError(
@@ -199,13 +199,17 @@ class AsyncVectorEnv(VectorEnv):
             pipe.send(("reset", None))
         self._state = AsyncState.WAITING_RESET
 
-    def reset_wait(self, timeout=None):
+    def reset_wait(self, timeout=None, seed=None, options=None):
         """
         Parameters
         ----------
         timeout : int or float, optional
             Number of seconds before the call to `reset_wait` times out. If
             `None`, the call to `reset_wait` never times out.
+        seed : int, optional
+            Ignored (for gymnasium compatibility)
+        options : dict, optional
+            Ignored (for gymnasium compatibility)
         Returns
         -------
         observations : sample from `observation_space`
@@ -228,6 +232,10 @@ class AsyncVectorEnv(VectorEnv):
         results, successes = zip(*[pipe.recv() for pipe in self.parent_pipes])
         self._raise_if_errors(successes)
         self._state = AsyncState.DEFAULT
+
+        # Handle gymnasium's (obs, info) tuple returns
+        if len(results) > 0 and isinstance(results[0], tuple):
+            results = [r[0] for r in results]  # Extract just obs from (obs, info)
 
         if not self.shared_memory:
             self.observations = concatenate(
@@ -567,7 +575,9 @@ def _worker(index, env_fn, pipe, parent_pipe, shared_memory, error_queue):
         while True:
             command, data = pipe.recv()
             if command == "reset":
-                observation = env.reset()
+                result = env.reset()
+                # Handle gymnasium's (obs, info) return
+                observation = result[0] if isinstance(result, tuple) else result
                 pipe.send((observation, True))
             elif command == "step":
                 observation, reward, done, info = env.step(data)
@@ -575,7 +585,9 @@ def _worker(index, env_fn, pipe, parent_pipe, shared_memory, error_queue):
                 #     observation = env.reset()
                 pipe.send(((observation, reward, done, info), True))
             elif command == "seed":
-                env.seed(data)
+                # Use gymnasium-compatible seeding
+                if hasattr(env, 'seed'):
+                    env.seed(data)
                 pipe.send((None, True))
             elif command == "close":
                 pipe.send((None, True))
@@ -621,7 +633,9 @@ def _worker_shared_memory(index, env_fn, pipe, parent_pipe, shared_memory, error
         while True:
             command, data = pipe.recv()
             if command == "reset":
-                observation = env.reset()
+                result = env.reset()
+                # Handle gymnasium's (obs, info) return
+                observation = result[0] if isinstance(result, tuple) else result
                 write_to_shared_memory(
                     index, observation, shared_memory, observation_space
                 )
@@ -635,7 +649,9 @@ def _worker_shared_memory(index, env_fn, pipe, parent_pipe, shared_memory, error
                 )
                 pipe.send(((None, reward, done, info), True))
             elif command == "seed":
-                env.seed(data)
+                # Use gymnasium-compatible seeding
+                if hasattr(env, 'seed'):
+                    env.seed(data)
                 pipe.send((None, True))
             elif command == "close":
                 pipe.send((None, True))

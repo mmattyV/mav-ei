@@ -58,13 +58,16 @@ class SyncVectorEnv(VectorEnv):
         assert len(seeds) == self.num_envs
 
         for env, seed in zip(self.envs, seeds):
-            env.seed(seed)
+            if hasattr(env, 'seed'):
+                env.seed(seed)
 
-    def reset_wait(self):
+    def reset_wait(self, seed=None, options=None):
         self._dones[:] = False
         observations = []
         for env in self.envs:
-            observation = env.reset()
+            result = env.reset()
+            # Handle gymnasium's (obs, info) return
+            observation = result[0] if isinstance(result, tuple) else result
             observations.append(observation)
         self.observations = concatenate(
             observations, self.observations, self.single_observation_space

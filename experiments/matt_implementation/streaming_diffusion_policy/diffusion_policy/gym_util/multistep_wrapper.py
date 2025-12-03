@@ -1,5 +1,7 @@
 import gym
 from gym import spaces
+import gymnasium
+from gymnasium import spaces as gymnasium_spaces
 import numpy as np
 from collections import defaultdict, deque
 import dill
@@ -16,9 +18,10 @@ def repeated_box(box_space, n):
     )
 
 def repeated_space(space, n):
-    if isinstance(space, spaces.Box):
+    # Support both gym and gymnasium spaces
+    if isinstance(space, (spaces.Box, gymnasium_spaces.Box)):
         return repeated_box(space, n)
-    elif isinstance(space, spaces.Dict):
+    elif isinstance(space, (spaces.Dict, gymnasium_spaces.Dict)):
         result_space = spaces.Dict()
         for key, value in space.items():
             result_space[key] = repeated_space(value, n)
@@ -85,10 +88,26 @@ class MultiStepWrapper(gym.Wrapper):
         self.reward = list()
         self.done = list()
         self.info = defaultdict(lambda : deque(maxlen=n_obs_steps+1))
+        self._seed = None  # Store seed for gymnasium compatibility
+    
+    def seed(self, seed=None):
+        """Store seed for use in next reset (gymnasium compatibility)."""
+        self._seed = seed
     
     def reset(self):
         """Resets the environment using kwargs."""
-        obs = super().reset()
+        # Handle both gym and gymnasium reset signatures
+        if self._seed is not None:
+            result = self.env.reset(seed=self._seed)
+            self._seed = None  # Clear after use
+        else:
+            result = self.env.reset()
+        
+        # Handle gymnasium's (obs, info) return vs gym's obs return
+        if isinstance(result, tuple):
+            obs = result[0]
+        else:
+            obs = result
 
         self.obs = deque([obs], maxlen=self.n_obs_steps+1)
         self.reward = list()
@@ -128,9 +147,10 @@ class MultiStepWrapper(gym.Wrapper):
         Output (n_steps,) + obs_shape
         """
         assert(len(self.obs) > 0)
-        if isinstance(self.observation_space, spaces.Box):
+        # Support both gym and gymnasium spaces
+        if isinstance(self.observation_space, (spaces.Box, gymnasium_spaces.Box)):
             return stack_last_n_obs(self.obs, n_steps)
-        elif isinstance(self.observation_space, spaces.Dict):
+        elif isinstance(self.observation_space, (spaces.Dict, gymnasium_spaces.Dict)):
             result = dict()
             for key in self.observation_space.keys():
                 result[key] = stack_last_n_obs(

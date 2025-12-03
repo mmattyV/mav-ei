@@ -20,7 +20,9 @@ class VideoWrapper(gym.Wrapper):
         self.step_count = 0
 
     def reset(self, **kwargs):
-        obs = super().reset(**kwargs)
+        result = super().reset(**kwargs)
+        # Handle gymnasium's (obs, info) return
+        obs = result[0] if isinstance(result, tuple) else result
         self.frames = list()
         self.step_count = 1
         if self.enabled:

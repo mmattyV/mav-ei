@@ -96,17 +96,17 @@ optimizer:
   weight_decay: 1.0e-6
 
 training:
-  device: "cuda:0"
+  device: "mps"  # Use Apple Silicon GPU (change to "cpu" if MPS doesn't work)
   seed: 42
   debug: False
   resume: True
   lr_scheduler: cosine
   lr_warmup_steps: 500
-  num_epochs: 500
+  num_epochs: 200        # More epochs for better convergence
   gradient_accumulate_every: 1
   use_ema: True
-  rollout_every: 50
-  checkpoint_every: 50
+  rollout_every: 9999    # Disabled - gym/gymnasium incompatibility in env runner
+  checkpoint_every: 25   # Save checkpoints regularly
   val_every: 1
   sample_every: 5
   max_train_steps: null
@@ -116,7 +116,7 @@ training:
 logging:
   project: lunar_lander_sdp
   resume: True
-  mode: online
+  mode: disabled
   name: ${now:%Y.%m.%d-%H.%M.%S}_${name}_${task_name}
   tags: ["${name}", "${task_name}", "${exp_name}"]
   id: null
@@ -124,10 +124,10 @@ logging:
 
 checkpoint:
   topk:
-    monitor_key: test_mean_score
-    mode: max
+    monitor_key: train_loss  # Using train_loss since rollouts are disabled
+    mode: min                # Lower loss is better
     k: 5
-    format_str: 'epoch={epoch:04d}-test_mean_score={test_mean_score:.3f}.ckpt'
+    format_str: 'epoch={epoch:04d}-train_loss={train_loss:.6f}.ckpt'
   save_last_ckpt: True
   save_last_snapshot: False
 
