@@ -12,7 +12,7 @@ Image Verifiers (from Ryan):
 - VerticalCorridorVerifier: Is lander within the landing corridor?
 - ControlledDescentVerifier: Is lander using main engine for braking?
 - PitchTrimmingVerifier: Is lander correcting its tilt properly?
-- FinalSuccessVerifier: Has lander successfully landed?
+- FinalSuccessVerifier: (DISABLED - gave false positives during lookahead)
 """
 
 import os
@@ -38,7 +38,7 @@ from diffusion_policy.policy.tedi_unet_lowdim_policy import TEDiUnetLowdimPolicy
 from verifiers.vertical_corridor import VerticalCorridorVerifier
 from verifiers.controlled_descent import ControlledDescentVerifier
 from verifiers.pitch_trimming import PitchTrimmingVerifier
-from verifiers.final_success import FinalSuccessVerifier
+# from verifiers.final_success import FinalSuccessVerifier  # Disabled - gives false positives
 
 
 def load_checkpoint(checkpoint_path: str, device: str = "mps"):
@@ -102,7 +102,7 @@ class ScreenshotVerifierMonitor:
             'vertical_corridor': VerticalCorridorVerifier(),
             'controlled_descent': ControlledDescentVerifier(),
             'pitch_trimming': PitchTrimmingVerifier(),
-            'final_success': FinalSuccessVerifier(),
+            # 'final_success': FinalSuccessVerifier(),  # Disabled - gives false positives
         }
         
         self.save_screenshots = save_screenshots
@@ -318,7 +318,7 @@ def print_results(results):
     print(f"  Vertical Corridor:   {results['mean_vertical_corridor_pass_rate']*100:.1f}%")
     print(f"  Controlled Descent:  {results['mean_controlled_descent_pass_rate']*100:.1f}%")
     print(f"  Pitch Trimming:      {results['mean_pitch_trimming_pass_rate']*100:.1f}%")
-    print(f"  Final Success:       {results['mean_final_success_pass_rate']*100:.1f}%")
+    # print(f"  Final Success:       {results['mean_final_success_pass_rate']*100:.1f}%")  # Disabled
     print(f"  Overall Approval:    {results['mean_overall_approval']*100:.1f}%")
     
     # Analyze correlation between verifiers and success
@@ -327,7 +327,7 @@ def print_results(results):
     failed_eps = [s for s in results['episode_stats'] if not s['success']]
     
     if successful_eps and failed_eps:
-        for vname in ['vertical_corridor', 'controlled_descent', 'pitch_trimming', 'final_success']:
+        for vname in ['vertical_corridor', 'controlled_descent', 'pitch_trimming']:  # final_success disabled
             key = f'{vname}_pass_rate'
             success_rate = np.mean([s[key] for s in successful_eps])
             fail_rate = np.mean([s[key] for s in failed_eps])
@@ -335,9 +335,9 @@ def print_results(results):
             print(f"  {vname}: +{diff*100:.1f}% in successful episodes")
     
     print("\n[Per-Episode Details (first 10)]")
-    print("-" * 85)
-    print(f"{'Ep':>3} {'Reward':>8} {'OK':>4} {'Steps':>5} {'VC':>6} {'CD':>6} {'PT':>6} {'FS':>6} {'Avg':>6}")
-    print("-" * 85)
+    print("-" * 75)
+    print(f"{'Ep':>3} {'Reward':>8} {'OK':>4} {'Steps':>5} {'VC':>6} {'CD':>6} {'PT':>6} {'Avg':>6}")
+    print("-" * 75)
     
     for s in results['episode_stats'][:10]:
         ok = "✓" if s['success'] else "✗"
@@ -345,7 +345,6 @@ def print_results(results):
               f"{s['vertical_corridor_pass_rate']*100:>5.0f}% "
               f"{s['controlled_descent_pass_rate']*100:>5.0f}% "
               f"{s['pitch_trimming_pass_rate']*100:>5.0f}% "
-              f"{s['final_success_pass_rate']*100:>5.0f}% "
               f"{s['mean_approval_rate']*100:>5.0f}%")
     
     if len(results['episode_stats']) > 10:

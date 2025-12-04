@@ -16,3 +16,6 @@ ENV/
 
 # Output files
 **/data/outputs/
+
+# Debug screenshots
+**/debug_screenshots/

@@ -34,7 +34,7 @@ from diffusion_policy.policy.tedi_unet_lowdim_policy import TEDiUnetLowdimPolicy
 from verifiers.vertical_corridor import VerticalCorridorVerifier
 from verifiers.controlled_descent import ControlledDescentVerifier
 from verifiers.pitch_trimming import PitchTrimmingVerifier
-from verifiers.final_success import FinalSuccessVerifier
+# from verifiers.final_success import FinalSuccessVerifier  # Disabled - gives false positives
 
 
 def load_checkpoint(checkpoint_path: str, device: str = "mps"):
@@ -68,7 +68,10 @@ def sample_k_candidates_batched(policy, obs_dict, k, device):
 
 
 class VerifierScorer:
-    """Score frames using image verifiers."""
+    """Score frames using image verifiers with weighted scoring.
+    
+    vertical_corridor is weighted 2x since it's the key differentiator for success.
+    """
     
     def __init__(self):
         self.verifiers = {
@@ -76,25 +79,29 @@ class VerifierScorer:
             'controlled_descent': ControlledDescentVerifier(),
             'pitch_trimming': PitchTrimmingVerifier(),
         }
-        # Final success verifier is special - if True, we pick this candidate immediately
-        self.final_success_verifier = FinalSuccessVerifier()
+        # Weights for each verifier (vertical_corridor is most important)
+        self.weights = {
+            'vertical_corridor': 2,  # 2x weight - key differentiator
+            'controlled_descent': 1,
+            'pitch_trimming': 1,
+        }
+        # Final success verifier disabled - gives false positives during lookahead
+        # self.final_success_verifier = FinalSuccessVerifier()
     
     def score_frame(self, frame_bgr):
         """
-        Score a single BGR frame.
+        Score a single BGR frame with weighted verifiers.
         
         Returns:
-            (score, is_final_success): score from verifiers, and whether final success was achieved
+            (score, is_final_success): score from verifiers, is_final_success always False (disabled)
         """
         score = 0
-        for verifier in self.verifiers.values():
+        for name, verifier in self.verifiers.items():
             if verifier(frame_bgr):
-                score += 1
+                score += self.weights.get(name, 1)
         
-        # Check final success separately
-        is_final_success = self.final_success_verifier(frame_bgr)
-        if is_final_success:
-            score += 100  # Huge bonus for achieving final success
+        # Final success verifier disabled - was giving false positives
+        is_final_success = False
         
         return score, is_final_success
 
@@ -221,10 +228,9 @@ def run_evaluation(policy, cfg, k, selection_method, n_episodes, n_lookahead, de
                 else:  # verifier
                     # Evaluate each candidate in parallel environments
                     scores = []
-                    selected_idx = None
                     
                     for i, candidate in enumerate(candidates):
-                        score, achieved_final_success = evaluate_candidate_parallel(
+                        score, _ = evaluate_candidate_parallel(
                             seed=episode_seed,
                             action_history=action_history,
                             candidate_actions=candidate,
@@ -232,15 +238,9 @@ def run_evaluation(policy, cfg, k, selection_method, n_episodes, n_lookahead, de
                             n_lookahead=n_lookahead,
                         )
                         scores.append(score)
-                        
-                        # OPTIMIZATION: If this candidate achieves final success, pick it immediately!
-                        if achieved_final_success:
-                            selected_idx = i
-                            break
                     
-                    # If no candidate achieved final success, pick highest score
-                    if selected_idx is None:
-                        selected_idx = np.argmax(scores)
+                    # Pick highest score (no early exit - FinalSuccess can give false positives)
+                    selected_idx = np.argmax(scores)
                 
                 action_queue = list(candidates[selected_idx])
                 action = action_queue.pop(0)
@@ -324,6 +324,8 @@ def main():
     parser.add_argument('--lookahead', type=int, default=4)
     parser.add_argument('--device', type=str, default='mps')
     parser.add_argument('--seed', type=int, default=42)
+    parser.add_argument('--temperature', type=float, default=1.0,
+                        help='Sampling temperature (>1.0 = more diverse candidates)')
     
     args = parser.parse_args()
     
@@ -334,6 +336,7 @@ def main():
     print(f"  K (candidates):      {args.k}")
     print(f"  Lookahead steps:     {args.lookahead}")
     print(f"  Episodes per method: {args.n_episodes}")
+    print(f"  Temperature:         {args.temperature}")
     print()
     print("  Strategy: For each candidate, create fresh env, replay history,")
     print("            simulate lookahead steps, screenshot, run verifiers.")
@@ -342,6 +345,11 @@ def main():
     # Load policy
     print("Loading SDP policy...")
     policy, cfg = load_checkpoint(args.checkpoint, args.device)
+    
+    # Set temperature for sampling diversity
+    if args.temperature != 1.0:
+        policy.set_temperature(args.temperature)
+        print(f"Temperature set to {args.temperature} for more diverse sampling")
     print()
     
     # Run random baseline

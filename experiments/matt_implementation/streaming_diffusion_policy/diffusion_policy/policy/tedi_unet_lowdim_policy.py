@@ -106,6 +106,13 @@ class TEDiUnetLowdimPolicy(BaseLowdimPolicy):
 
         self.buffer_init = buffer_init
         assert self.buffer_init in ["zero", "constant", "denoise"]
+        
+        # Temperature for sampling diversity (1.0 = default, >1.0 = more diverse)
+        self.temperature = 1.0
+    
+    def set_temperature(self, temperature: float):
+        """Set sampling temperature. Higher = more diverse samples."""
+        self.temperature = temperature
 
     # ========= common  ============
     def reset_buffer(self):
@@ -235,13 +242,13 @@ class TEDiUnetLowdimPolicy(BaseLowdimPolicy):
         ).long()
         self.buffer_diff_steps = diff_steps
 
-        # Add noise
+        # Add noise (scaled by temperature for diversity)
         noise = torch.randn(
             size=action_buffer.shape,
             dtype=self.dtype,
             device=self.device,
             generator=generator,
-        )
+        ) * self.temperature
         self.action_buffer = scheduler.add_noise(action_buffer, noise, diff_steps)
 
     def initialize_buffer_as_constant(self, shape, cond_data, generator=None):
@@ -275,13 +282,13 @@ class TEDiUnetLowdimPolicy(BaseLowdimPolicy):
         ).long()
         self.buffer_diff_steps = diff_steps
 
-        # Add noise
+        # Add noise (scaled by temperature for diversity)
         noise = torch.randn(
             size=action_buffer.shape,
             dtype=self.dtype,
             device=self.device,
             generator=generator,
-        )
+        ) * self.temperature
         self.action_buffer = scheduler.add_noise(action_buffer, noise, diff_steps)
 
     def conditional_sample(
@@ -359,7 +366,7 @@ class TEDiUnetLowdimPolicy(BaseLowdimPolicy):
             size=(B, num_new_actions, self.action_buffer.shape[-1]),
             dtype=self.dtype,
             device=self.device,
-        )
+        ) * self.temperature  # Scale by temperature for diversity
         new_sigma_indices = torch.ones(
             size=(B, num_new_actions), dtype=torch.long, device=self.device
         ) * (N - 1)
@@ -374,7 +381,7 @@ class TEDiUnetLowdimPolicy(BaseLowdimPolicy):
             size=self.action_buffer[:, : To - 1].shape,
             dtype=self.dtype,
             device=self.device,
-        )
+        ) * self.temperature  # Scale by temperature for diversity
         self.noise_scheduler.add_noise(
             self.action_buffer[:, : To - 1], noise, next_chunk_diff_step
         )
