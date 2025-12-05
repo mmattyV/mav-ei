@@ -1,0 +1,28 @@
+% Main Results Table
+\begin{table}[h]
+\centering
+\caption{Ablation Study Results}
+\begin{tabular}{lcccc}
+\hline
+Configuration & Success Rate & Mean Reward & Std Reward & Time (s) \\
+\hline
+Random selection (no verifiers) & 66.7\% & 196.3 & 106.2 & 44.0 \\
+Hybrid verifiers (tuned weights) & 100.0\% & 276.6 & 8.7 & 76.9 \\
+\hline
+\end{tabular}
+\label{tab:ablation}
+\end{table}
+
+% Improvement Over Baseline Table
+\begin{table}[h]
+\centering
+\caption{Improvement Over Random Baseline}
+\begin{tabular}{lcc}
+\hline
+Configuration & Success Improvement & Reward Improvement \\
+\hline
+Hybrid verifiers (tuned weights) & +33.3\% & +80.3 \\
+\hline
+\end{tabular}
+\label{tab:improvement}
+\end{table}

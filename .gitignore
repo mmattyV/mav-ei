@@ -17,5 +17,9 @@ ENV/
 # Output files
 **/data/outputs/
 
+# Demo data (can be regenerated)
+**/data/lunar_lander_dqn/
+**/data/*.zarr/
+
 # Debug screenshots
 **/debug_screenshots/

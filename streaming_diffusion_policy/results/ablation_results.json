@@ -1,0 +1,106 @@
+[
+  {
+    "experiment_name": "random_baseline",
+    "description": "Random selection (no verifiers)",
+    "config": {
+      "name": "random_baseline",
+      "use_verifiers": false,
+      "use_image_verifiers": false,
+      "use_state_verifiers": false,
+      "use_tuned_weights": false,
+      "description": "Random selection (no verifiers)"
+    },
+    "hyperparameters": {
+      "k": 10,
+      "n_episodes": 3,
+      "n_lookahead": 16,
+      "temperature": 2.0,
+      "seed": 42
+    },
+    "metrics": {
+      "success_rate": 0.6666666666666666,
+      "mean_reward": 196.26998364622182,
+      "std_reward": 106.16024889463156,
+      "min_reward": 46.28912233206049,
+      "max_reward": 277.11734162502256,
+      "mean_episode_time": 43.99019265174866,
+      "total_time": 131.97057795524597
+    },
+    "episode_rewards": [
+      277.11734162502256,
+      46.28912233206049,
+      265.40348698158243
+    ],
+    "episode_successes": [
+      true,
+      false,
+      true
+    ],
+    "verifier_analysis": {
+      "pass_rates_successful_episodes": {},
+      "pass_rates_failed_episodes": {}
+    }
+  },
+  {
+    "experiment_name": "hybrid_tuned",
+    "description": "Hybrid verifiers (tuned weights)",
+    "config": {
+      "name": "hybrid_tuned",
+      "use_verifiers": true,
+      "use_image_verifiers": true,
+      "use_state_verifiers": true,
+      "use_tuned_weights": true,
+      "description": "Hybrid verifiers (tuned weights)"
+    },
+    "hyperparameters": {
+      "k": 10,
+      "n_episodes": 3,
+      "n_lookahead": 16,
+      "temperature": 2.0,
+      "seed": 42
+    },
+    "metrics": {
+      "success_rate": 1.0,
+      "mean_reward": 276.5860278739935,
+      "std_reward": 8.68887246255911,
+      "min_reward": 269.3846056072192,
+      "max_reward": 288.8093485316275,
+      "mean_episode_time": 76.93856700261433,
+      "total_time": 230.81570100784302
+    },
+    "episode_rewards": [
+      269.3846056072192,
+      271.5641294831338,
+      288.8093485316275
+    ],
+    "episode_successes": [
+      true,
+      true,
+      true
+    ],
+    "verifier_analysis": {
+      "pass_rates_successful_episodes": {
+        "img_vertical_corridor": 0.8345588235294118,
+        "img_controlled_descent": 0.4557443795362011,
+        "img_pitch_trimming": 0.7622171545198005,
+        "state_safe_velocity": 0.37459388960044987,
+        "state_stable_rotation": 0.7630651703060406,
+        "state_on_target": 0.6382812418647758,
+        "state_safe_landing": 0.7621104203763288,
+        "state_descending": 0.9950980392156863,
+        "state_in_corridor": 0.8982843137254902
+      },
+      "pass_rates_failed_episodes": {
+        "img_vertical_corridor": 0.0,
+        "img_controlled_descent": 0.0,
+        "img_pitch_trimming": 0.0,
+        "state_safe_velocity": 0.0,
+        "state_stable_rotation": 0.0,
+        "state_on_target": 0.0,
+        "state_safe_landing": 0.0,
+        "state_descending": 0.0,
+        "state_in_corridor": 0.0
+      }
+    }
+  }
+]
