@@ -6,8 +6,11 @@
 \hline
 Configuration & Success Rate & Mean Reward & Std Reward & Time (s) \\
 \hline
-Random selection (no verifiers) & 66.7\% & 196.3 & 106.2 & 44.0 \\
-Hybrid verifiers (tuned weights) & 100.0\% & 276.6 & 8.7 & 76.9 \\
+Random selection (no verifiers) & 56.0\% & 164.8 & 126.5 & 49.1 \\
+Image-based verifiers only & 52.0\% & 120.5 & 161.8 & 196.7 \\
+State-based verifiers only & 74.0\% & 211.1 & 104.2 & 72.4 \\
+Hybrid verifiers (equal weights) & 80.0\% & 212.8 & 118.0 & 154.8 \\
+Hybrid verifiers (tuned weights) & 84.0\% & 229.7 & 83.7 & 126.0 \\
 \hline
 \end{tabular}
 \label{tab:ablation}
@@ -21,7 +24,10 @@ Hybrid verifiers (tuned weights) & 100.0\% & 276.6 & 8.7 & 76.9 \\
 \hline
 Configuration & Success Improvement & Reward Improvement \\
 \hline
-Hybrid verifiers (tuned weights) & +33.3\% & +80.3 \\
+Image-based verifiers only & +-4.0\% & +-44.2 \\
+State-based verifiers only & +18.0\% & +46.3 \\
+Hybrid verifiers (equal weights) & +24.0\% & +48.0 \\
+Hybrid verifiers (tuned weights) & +28.0\% & +64.9 \\
 \hline
 \end{tabular}
 \label{tab:improvement}
